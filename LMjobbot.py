@@ -1,30 +1,34 @@
-# Improved Parsing and Formatting for Discord Messages
+def get_jobs():
+    response = requests.get(SEARCH_URL)
+    soup = BeautifulSoup(response.text, "html.parser")
 
-import discord
+    jobs = []
 
-class LMjobbot:
-    def __init__(self):
-        self.client = discord.Client()
+    for job_card in soup.find_all("li"):
+        link = job_card.find("a", href=True)
+        if not link:
+            continue
 
-    async def on_ready(self):
-        print(f'Logged in as {self.client.user}')
+        # Clean up title - remove all whitespace and newline characters
+        title = " ".join(link.text.split())  # This removes all \r\n and extra spaces
+        url = link["href"].strip('"')  # Remove extra quotes
+        
+        if not url.startswith("http"):
+            url = "https://www.lockheedmartinjobs.com" + url
+        
+        job_id = url
 
-    async def parse_message(self, message):
-        # Improved parsing logic
-        if message.author == self.client.user:
-            return
-        if message.content.startswith('!'):  # Command starts with '!', e.g., !help
-            command = message.content[1:].lower()
-            await self.handle_command(command, message.channel)
+        jobs.append({
+            "id": job_id,
+            "title": title,
+            "url": url
+        })
 
-    async def handle_command(self, command, channel):
-        # Improved formatting for Discord messages
-        responses = {
-            'help': 'Here is a list of commands you can use: \n !help - Show this help message \n !job - Get job updates',
-            'job': 'Check out the latest job listings at [Job Link]!',
-        }
-        response = responses.get(command, 'Invalid command. Please type !help for the list of commands.')
-        await channel.send(response)
+    return jobs
 
-    def run(self, token):
-        self.client.run(token)
+def send_to_discord(job):
+    payload = {
+        "content": f"🛰️ **New Lockheed Remote Job!**\n**{job['title']}**\n{job['url']}"
+    }
+
+    requests.post(WEBHOOK_URL, json=payload)
